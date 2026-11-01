@@ -30,7 +30,6 @@
   </script>
 
   <style>
-    /* iOS 安全区支持与禁止页面橡皮筋回弹导致卡顿 */
     body {
       -webkit-tap-highlight-color: transparent;
       padding-top: env(safe-area-inset-top);
@@ -38,7 +37,6 @@
       user-select: none;
     }
     
-    /* 3D 翻转卡片核心样式 */
     .perspective-1000 {
       perspective: 1000px;
     }
@@ -53,7 +51,6 @@
       transform: rotateY(180deg);
     }
     
-    /* 自定义滚动条 */
     ::-webkit-scrollbar {
       display: none;
     }
@@ -70,7 +67,7 @@
       <div>
         <div class="flex items-center space-x-2">
           <h1 class="text-base font-bold text-white tracking-wide">WortBlitz</h1>
-          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">德语卡片</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">v2.5 AI</span>
         </div>
         <p id="storage-status" class="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 本地存储已就绪
@@ -107,7 +104,7 @@
 
       <!-- 抽认卡展示区域 -->
       <div id="card-container" class="relative flex-1 min-h-[380px] w-full perspective-1000 my-auto flex items-center justify-center cursor-pointer" onclick="flipCard()">
-        <!-- 由 JavaScript 动态渲染 3D 抽认卡 -->
+        <!-- 动态 3D 抽认卡 -->
       </div>
 
       <!-- 底部评价打分按钮 -->
@@ -138,12 +135,12 @@
           <span>📷</span> 德语教材 / 课堂笔记 识别
         </h2>
         <p class="text-xs text-slate-400 leading-relaxed">
-          直接拍摄德语书页或选择截图，AI 会自动为你分析词性、冠词（der/die/das）、复数形式、中文释义及生动例句。
+          拍摄课本或选择截图，AI 会自动为你分析词性、冠词（der/die/das）、复数形式、中文释义及生动例句。
         </p>
 
         <!-- 拍照与选相册按钮 -->
         <div class="grid grid-cols-2 gap-3 pt-2">
-          <!-- 调取原生相机 -->
+          <!-- 相机拍照 -->
           <label class="flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-800/60 border border-slate-700/80 active:scale-95 transition cursor-pointer text-center">
             <span class="text-2xl mb-1">📸</span>
             <span class="text-xs font-bold text-white">拍照</span>
@@ -151,7 +148,7 @@
             <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleImageSelection(event)">
           </label>
 
-          <!-- 选取相册照片 -->
+          <!-- 选取相册 -->
           <label class="flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-800/60 border border-slate-700/80 active:scale-95 transition cursor-pointer text-center">
             <span class="text-2xl mb-1">🖼️</span>
             <span class="text-xs font-bold text-white">相册选择</span>
@@ -172,16 +169,14 @@
         </div>
       </div>
 
-      <!-- 提取结果展示与勾选列表 -->
+      <!-- 提取结果展示 -->
       <div id="extraction-result-box" class="hidden flex-1 bg-slate-900/80 border border-slate-800 p-4 rounded-3xl flex flex-col">
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <span class="text-xs font-bold text-white">提取到的生词列表</span>
           <span id="extracted-count-tag" class="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">0 个</span>
         </div>
 
-        <div id="extracted-items-list" class="flex-1 overflow-y-auto my-3 space-y-2 max-h-60 pr-1">
-          <!-- 动态提取结果 -->
-        </div>
+        <div id="extracted-items-list" class="flex-1 overflow-y-auto my-3 space-y-2 max-h-60 pr-1"></div>
 
         <button onclick="saveSelectedWordsToDeck()" class="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition">
           📥 将勾选单词加入我的生词库
@@ -198,9 +193,7 @@
         </button>
       </div>
 
-      <div id="vocab-items-table" class="flex-1 overflow-y-auto space-y-2 pr-1">
-        <!-- 动态单词列表项 -->
-      </div>
+      <div id="vocab-items-table" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
     </section>
   </main>
 
@@ -224,7 +217,7 @@
     </div>
   </nav>
 
-  <!-- ================= 设置弹窗 (包含 API Key 配置) ================= -->
+  <!-- ================= 设置弹窗 (含 API Key) ================= -->
   <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center pb-2 border-b border-slate-800">
@@ -240,7 +233,7 @@
           🔑 Google Gemini API Key
         </label>
         <p class="text-[11px] text-slate-400 leading-relaxed">
-          用于拍照智能识别课本生词。可在 <a href="https://aistudio.google.com/" target="_blank" class="text-amber-400 underline">aistudio.google.com</a> 免费获取。
+          用于拍照智能识别课本生词。在 <a href="https://aistudio.google.com/" target="_blank" class="text-amber-400 underline">aistudio.google.com</a> 免费获取。
         </p>
         <div class="relative">
           <input 
@@ -334,7 +327,6 @@
 
   <!-- ================= 核心 JavaScript 逻辑 ================= -->
   <script>
-    // 初始示例词汇
     const DEFAULT_VOCABULARY = [
       {
         id: "w-1",
@@ -378,7 +370,6 @@
       }
     ];
 
-    // 全局状态
     let vocabulary = [];
     let currentFilter = 'all';
     let filteredIndices = [];
@@ -387,7 +378,6 @@
     let selectedImageBase64 = null;
     let extractedCache = [];
 
-    // 初始化运行
     window.addEventListener('DOMContentLoaded', () => {
       loadStoredData();
       renderCurrentCard();
@@ -396,7 +386,6 @@
       loadStoredApiKey();
     });
 
-    // 1. 本地存储管理
     function loadStoredData() {
       try {
         const stored = localStorage.getItem('wortblitz_vocab');
@@ -427,7 +416,6 @@
       if (badge) badge.innerText = `${vocabulary.length} 词`;
     }
 
-    // 2. 筛选与卡片逻辑
     function setFilter(filter) {
       currentFilter = filter;
       ['all', 'learning', 'mastered'].forEach(f => {
@@ -467,7 +455,6 @@
       }
     }
 
-    // 颜色配置映射
     function getGenderMeta(gender) {
       switch ((gender || '').toLowerCase()) {
         case 'der':
@@ -483,7 +470,6 @@
       }
     }
 
-    // 渲染卡片界面
     function renderCurrentCard() {
       const container = document.getElementById('card-container');
       const progress = document.getElementById('card-progress');
@@ -583,7 +569,6 @@
       `;
     }
 
-    // 朗读发音 (Web Speech API)
     function speakText(text) {
       if (!text || !('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
@@ -593,7 +578,6 @@
       window.speechSynthesis.speak(utterance);
     }
 
-    // 背单词评分
     function rateCard(score) {
       if (filteredIndices.length === 0) return;
       const activeIdx = filteredIndices[currentCardIndex];
@@ -606,13 +590,11 @@
       }
       saveToLocalStorage();
 
-      // 下一张
       isFlipped = false;
       currentCardIndex = (currentCardIndex + 1) % filteredIndices.length;
       renderCurrentCard();
     }
 
-    // 3. 标签切换
     function switchTab(tab) {
       ['study', 'extract', 'list'].forEach(t => {
         const view = document.getElementById(`view-${t}`);
@@ -630,7 +612,6 @@
       if (tab === 'list') renderWordList();
     }
 
-    // 4. 图片选择与 AI 拍照提取
     function handleImageSelection(event) {
       const file = event.target.files && event.target.files[0];
       if (!file) return;
@@ -651,7 +632,7 @@
       document.getElementById('extraction-result-box').classList.add('hidden');
     }
 
-    // 调用 Gemini 多模态 API
+    // 调用 Gemini 多模态 API (自动轮询 gemini-2.5-flash 与 gemini-2.0-flash)
     async function runAIExtraction() {
       const apiKey = localStorage.getItem('wortblitz_api_key') || '';
       if (!apiKey.trim()) {
@@ -686,35 +667,49 @@
 必须只返回合法的标准 JSON 数组，严禁包含任何 Markdown 格式块（如 \`\`\`json）。
 `;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // 尝试模型列表：绝对不包含失效的 1.5-flash
+        const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+        let lastError = null;
+        let successData = null;
 
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: mimeType,
-                    data: pureBase64
-                  }
-                }
-              ]
-            }]
-          })
-        });
+        for (const model of candidateModels) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: prompt },
+                    {
+                      inline_data: {
+                        mime_type: mimeType,
+                        data: pureBase64
+                      }
+                    }
+                  ]
+                }]
+              })
+            });
 
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error?.message || "请求 Gemini 失败，请检查 API Key");
+            if (response.ok) {
+              successData = await response.json();
+              break; // 成功则直接跳出
+            } else {
+              const err = await response.json();
+              lastError = new Error(err.error?.message || `模型 ${model} 调用失败`);
+            }
+          } catch (e) {
+            lastError = e;
+          }
         }
 
-        const data = await response.json();
-        const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-        
-        // 清理可能夹带的 markdown 格式
+        if (!successData) {
+          throw lastError || new Error("未能连接到 Google AI 服务，请检查 API Key");
+        }
+
+        const textContent = successData.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
         const cleanJson = textContent.replace(/```json/g, '').replace(/```/g, '').trim();
         const words = JSON.parse(cleanJson);
 
@@ -792,7 +787,6 @@
       switchTab('study');
     }
 
-    // 5. 生词库列表渲染
     function renderWordList() {
       const table = document.getElementById('vocab-items-table');
       if (!table) return;
@@ -839,7 +833,6 @@
       }
     }
 
-    // 6. 手动添加弹窗
     function openManualAddModal() {
       document.getElementById('manual-modal').classList.remove('hidden');
     }
@@ -871,7 +864,6 @@
       alert("添加成功！");
     }
 
-    // 7. 设置与 API Key 弹窗管理
     function openSettingsModal() {
       loadStoredApiKey();
       document.getElementById('settings-modal').classList.remove('hidden');
