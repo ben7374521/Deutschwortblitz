@@ -1,60 +1,926 @@
-<!-- ... existing code ... -->
-  <!-- Settings Modal -->
-  <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-5 shadow-2xl">
-      <div class="flex justify-between items-center pb-3 border-b border-slate-800">
-        <h3 class="text-base font-bold text-white flex items-center gap-2">
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>WortBlitz - 德语生词卡</title>
+  
+  <!-- iOS PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WortBlitz">
+  <meta name="theme-color" content="#0b1120">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            der: '#38bdf8', // 阳性：明亮天蓝
+            die: '#fb7185', // 阴性：玫瑰粉红
+            das: '#34d399', // 中性：翠绿
+            pl:  '#fbbf24'  // 复数：金黄
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* iOS 安全区支持与禁止页面橡皮筋回弹导致卡顿 */
+    body {
+      -webkit-tap-highlight-color: transparent;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      user-select: none;
+    }
+    
+    /* 3D 翻转卡片核心样式 */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .transform-style-3d {
+      transform-style: preserve-3d;
+    }
+    .backface-hidden {
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+    
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-[#0b1329] text-slate-100 min-h-screen flex flex-col font-sans antialiased overflow-x-hidden">
+
+  <!-- ================= 顶部导航栏 ================= -->
+  <header class="px-5 pt-3 pb-3 flex items-center justify-between border-b border-slate-800/80 bg-[#0b1329]/90 sticky top-0 z-40 backdrop-blur-md">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center font-black text-sm text-white shadow-lg shadow-amber-500/20">
+        DE
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-base font-bold text-white tracking-wide">WortBlitz</h1>
+          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">德语卡片</span>
+        </div>
+        <p id="storage-status" class="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 本地存储已就绪
+        </p>
+      </div>
+    </div>
+
+    <!-- 右上角操作区 -->
+    <div class="flex items-center space-x-2">
+      <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-2.5 py-1 flex items-center space-x-1.5 text-xs text-slate-300 font-semibold">
+        <span>📚</span>
+        <span id="deck-count-badge">0 词</span>
+      </div>
+      <button onclick="openSettingsModal()" class="w-8 h-8 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white transition active:scale-95" title="设置与 API Key">
+        ⚙️
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= 主内容容器 ================= -->
+  <main class="flex-1 flex flex-col max-w-md mx-auto w-full p-4 pb-24">
+
+    <!-- 视图 1：背单词模式 (Study Tab) -->
+    <section id="view-study" class="flex-1 flex flex-col">
+      <!-- 模式筛选器 & 进度 -->
+      <div class="flex items-center justify-between mb-3 px-1">
+        <div class="flex space-x-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+          <button onclick="setFilter('all')" id="filter-all" class="text-xs px-3 py-1 rounded-lg font-medium transition bg-amber-500 text-slate-950 font-bold">全部</button>
+          <button onclick="setFilter('learning')" id="filter-learning" class="text-xs px-3 py-1 rounded-lg font-medium transition text-slate-400 hover:text-white">复习中</button>
+          <button onclick="setFilter('mastered')" id="filter-mastered" class="text-xs px-3 py-1 rounded-lg font-medium transition text-slate-400 hover:text-white">已掌握</button>
+        </div>
+        <span id="card-progress" class="text-xs text-slate-400 font-medium">0 / 0</span>
+      </div>
+
+      <!-- 抽认卡展示区域 -->
+      <div id="card-container" class="relative flex-1 min-h-[380px] w-full perspective-1000 my-auto flex items-center justify-center cursor-pointer" onclick="flipCard()">
+        <!-- 由 JavaScript 动态渲染 3D 抽认卡 -->
+      </div>
+
+      <!-- 底部评价打分按钮 -->
+      <div id="rating-buttons" class="grid grid-cols-4 gap-2 pt-4">
+        <button onclick="rateCard(1)" class="flex flex-col items-center justify-center py-2.5 px-1 rounded-2xl bg-rose-950/40 border border-rose-900/60 text-rose-300 active:scale-95 transition">
+          <span class="text-xs font-bold">重来</span>
+          <span class="text-[9px] text-rose-400/80">Again</span>
+        </button>
+        <button onclick="rateCard(2)" class="flex flex-col items-center justify-center py-2.5 px-1 rounded-2xl bg-amber-950/40 border border-amber-900/60 text-amber-300 active:scale-95 transition">
+          <span class="text-xs font-bold">困难</span>
+          <span class="text-[9px] text-amber-400/80">Hard</span>
+        </button>
+        <button onclick="rateCard(3)" class="flex flex-col items-center justify-center py-2.5 px-1 rounded-2xl bg-emerald-950/40 border border-emerald-900/60 text-emerald-300 active:scale-95 transition">
+          <span class="text-xs font-bold">良好</span>
+          <span class="text-[9px] text-emerald-400/80">Good</span>
+        </button>
+        <button onclick="rateCard(4)" class="flex flex-col items-center justify-center py-2.5 px-1 rounded-2xl bg-blue-950/40 border border-blue-900/60 text-blue-300 active:scale-95 transition">
+          <span class="text-xs font-bold">简单</span>
+          <span class="text-[9px] text-blue-400/80">Easy</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 视图 2：拍照提取生词 (Extract Tab) -->
+    <section id="view-extract" class="hidden flex-1 flex flex-col space-y-4">
+      <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-3xl space-y-3">
+        <h2 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <span>📷</span> 德语教材 / 课堂笔记 识别
+        </h2>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          直接拍摄德语书页或选择截图，AI 会自动为你分析词性、冠词（der/die/das）、复数形式、中文释义及生动例句。
+        </p>
+
+        <!-- 拍照与选相册按钮 -->
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <!-- 调取原生相机 -->
+          <label class="flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-800/60 border border-slate-700/80 active:scale-95 transition cursor-pointer text-center">
+            <span class="text-2xl mb-1">📸</span>
+            <span class="text-xs font-bold text-white">拍照</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">调取手机相机</span>
+            <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleImageSelection(event)">
+          </label>
+
+          <!-- 选取相册照片 -->
+          <label class="flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-b from-slate-800 to-slate-800/60 border border-slate-700/80 active:scale-95 transition cursor-pointer text-center">
+            <span class="text-2xl mb-1">🖼️</span>
+            <span class="text-xs font-bold text-white">相册选择</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">从手机图库选图</span>
+            <input type="file" accept="image/*" class="hidden" onchange="handleImageSelection(event)">
+          </label>
+        </div>
+
+        <!-- 预览所选图片 -->
+        <div id="image-preview-container" class="hidden pt-2">
+          <div class="relative rounded-2xl overflow-hidden border border-slate-700 max-h-52 bg-black flex items-center justify-center">
+            <img id="selected-image" class="w-full h-full object-contain" alt="预览">
+            <button onclick="clearSelectedImage()" class="absolute top-2 right-2 w-7 h-7 bg-black/70 text-white rounded-full flex items-center justify-center text-xs">✕</button>
+          </div>
+          <button id="btn-start-extract" onclick="runAIExtraction()" class="w-full mt-3 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 active:scale-95 transition flex items-center justify-center gap-1.5">
+            <span>✨</span> 开始 AI 智能提取生词
+          </button>
+        </div>
+      </div>
+
+      <!-- 提取结果展示与勾选列表 -->
+      <div id="extraction-result-box" class="hidden flex-1 bg-slate-900/80 border border-slate-800 p-4 rounded-3xl flex flex-col">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <span class="text-xs font-bold text-white">提取到的生词列表</span>
+          <span id="extracted-count-tag" class="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">0 个</span>
+        </div>
+
+        <div id="extracted-items-list" class="flex-1 overflow-y-auto my-3 space-y-2 max-h-60 pr-1">
+          <!-- 动态提取结果 -->
+        </div>
+
+        <button onclick="saveSelectedWordsToDeck()" class="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition">
+          📥 将勾选单词加入我的生词库
+        </button>
+      </div>
+    </section>
+
+    <!-- 视图 3：全部生词列表 (List Tab) -->
+    <section id="view-list" class="hidden flex-1 flex flex-col space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold text-white">全部已存单词</h2>
+        <button onclick="openManualAddModal()" class="text-xs text-amber-400 font-bold flex items-center gap-1 bg-amber-400/10 px-2.5 py-1 rounded-xl border border-amber-400/30 active:scale-95">
+          <span>+</span> 手动添加
+        </button>
+      </div>
+
+      <div id="vocab-items-table" class="flex-1 overflow-y-auto space-y-2 pr-1">
+        <!-- 动态单词列表项 -->
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= 底部固定导航栏 ================= -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-[#0b1329]/95 border-t border-slate-800/80 backdrop-blur-lg px-6 py-2 pb-safe">
+    <div class="max-w-md mx-auto flex items-center justify-around">
+      <button onclick="switchTab('study')" id="tab-btn-study" class="flex flex-col items-center py-1 text-amber-400 transition">
+        <span class="text-lg">🗂️</span>
+        <span class="text-[11px] font-bold mt-0.5">背单词</span>
+      </button>
+
+      <button onclick="switchTab('extract')" id="tab-btn-extract" class="flex flex-col items-center py-1 text-slate-400 hover:text-white transition">
+        <span class="text-lg">📸</span>
+        <span class="text-[11px] font-bold mt-0.5">拍照提取</span>
+      </button>
+
+      <button onclick="switchTab('list')" id="tab-btn-list" class="flex flex-col items-center py-1 text-slate-400 hover:text-white transition">
+        <span class="text-lg">📝</span>
+        <span class="text-[11px] font-bold mt-0.5">生词库</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= 设置弹窗 (包含 API Key 配置) ================= -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
           <span>⚙️</span> 应用设置
         </h3>
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white p-1 text-lg">✕</button>
       </div>
 
-      <!-- API Key Configuration Section -->
+      <!-- API Key 设置模块 -->
       <div class="space-y-2">
         <label class="block text-xs font-semibold text-slate-300">
           🔑 Google Gemini API Key
         </label>
         <p class="text-[11px] text-slate-400 leading-relaxed">
-          用于拍照识别生词。免费在 <a href="https://aistudio.google.com/" target="_blank" class="text-amber-400 underline">aistudio.google.com</a> 获取。
+          用于拍照智能识别课本生词。可在 <a href="https://aistudio.google.com/" target="_blank" class="text-amber-400 underline">aistudio.google.com</a> 免费获取。
         </p>
         <div class="relative">
           <input 
             type="password" 
             id="setting-api-key" 
             placeholder="粘贴 AIzaSy... 密钥" 
-            class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition pr-16"
+            class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition pr-14"
           />
           <button 
             type="button" 
-            onclick="toggleApiKeyVisibility()" 
-            id="toggle-key-btn"
-            class="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-700/60"
+            onclick="toggleKeyVisibility()" 
+            id="btn-toggle-key"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-700"
           >
             显示
           </button>
         </div>
         <button 
-          onclick="saveApiKeyFromModal()" 
-          class="w-full mt-2 py-2.5 px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow transition active:scale-[0.98]"
+          onclick="saveApiKey()" 
+          class="w-full py-2.5 px-3 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow active:scale-95 transition"
         >
           保存 API Key 到手机
         </button>
       </div>
 
-      <div class="pt-2 border-t border-slate-800 space-y-3">
+      <!-- 备份与清空 -->
+      <div class="pt-3 border-t border-slate-800 space-y-2">
         <div class="flex items-center justify-between">
-          <span class="text-xs text-slate-300">数据备份与导出</span>
-          <button onclick="exportVocabularyJSON()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition">
-            导出 JSON
+          <span class="text-xs text-slate-300">备份生词卡 (JSON)</span>
+          <button onclick="exportVocabulary()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+            导出
           </button>
         </div>
         <div class="flex items-center justify-between">
-          <span class="text-xs text-rose-400">清空所有生词</span>
-          <button onclick="confirmClearAllVocabulary()" class="text-xs bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 px-3 py-1.5 rounded-lg border border-rose-800/40 transition">
-            重置词库
+          <span class="text-xs text-rose-400">清空当前词库</span>
+          <button onclick="clearAllWords()" class="text-xs bg-rose-950/40 text-rose-300 px-3 py-1.5 rounded-lg border border-rose-800/40 transition">
+            清空
           </button>
         </div>
       </div>
     </div>
   </div>
-<!-- ... existing code ... -->
+
+  <!-- 手动添加生词弹窗 -->
+  <div id="manual-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-3 shadow-2xl">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-white">手动输入新单词</h3>
+        <button onclick="closeManualAddModal()" class="text-slate-400 hover:text-white p-1 text-lg">✕</button>
+      </div>
+
+      <div class="space-y-2 text-xs">
+        <div>
+          <label class="text-slate-400 block mb-1">冠词与词性</label>
+          <select id="manual-gender" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white">
+            <option value="der">阳性名词 (der)</option>
+            <option value="die">阴性名词 (die)</option>
+            <option value="das">中性名词 (das)</option>
+            <option value="verb">动词 (Verb)</option>
+            <option value="adj">形容词 (Adjektiv)</option>
+            <option value="other">其他短语</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">德语原词 *</label>
+          <input type="text" id="manual-word" placeholder="例如：Tisch" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">复数形式 (如有)</label>
+          <input type="text" id="manual-plural" placeholder="例如：die Tische" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">中文释义 *</label>
+          <input type="text" id="manual-meaning" placeholder="例如：桌子" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">德条例句</label>
+          <input type="text" id="manual-example" placeholder="Das ist ein Tisch." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">例句中文翻译</label>
+          <input type="text" id="manual-example-zh" placeholder="这是一张桌子。" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+      </div>
+
+      <button onclick="saveManualWord()" class="w-full mt-2 py-3 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow active:scale-95 transition">
+        保存至词库
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= 核心 JavaScript 逻辑 ================= -->
+  <script>
+    // 初始示例词汇
+    const DEFAULT_VOCABULARY = [
+      {
+        id: "w-1",
+        gender: "der",
+        word: "Apfel",
+        plural: "die Äpfel",
+        meaning: "苹果",
+        example: "Ich esse jeden Tag einen Apfel.",
+        exampleZh: "我每天吃一个苹果。",
+        status: "learning"
+      },
+      {
+        id: "w-2",
+        gender: "die",
+        word: "Zeitung",
+        plural: "die Zeitungen",
+        meaning: "报纸",
+        example: "Er liest morgens die Zeitung.",
+        exampleZh: "他早晨读报纸。",
+        status: "learning"
+      },
+      {
+        id: "w-3",
+        gender: "das",
+        word: "Buch",
+        plural: "die Bücher",
+        meaning: "书，书籍",
+        example: "Das Buch ist sehr interessant.",
+        exampleZh: "这本书非常有趣。",
+        status: "mastered"
+      },
+      {
+        id: "w-4",
+        gender: "verb",
+        word: "verstehen",
+        plural: "verstand, hat verstanden",
+        meaning: "理解，明白",
+        example: "Ich verstehe diesen Satz nicht.",
+        exampleZh: "我不理解这个句子。",
+        status: "learning"
+      }
+    ];
+
+    // 全局状态
+    let vocabulary = [];
+    let currentFilter = 'all';
+    let filteredIndices = [];
+    let currentCardIndex = 0;
+    let isFlipped = false;
+    let selectedImageBase64 = null;
+    let extractedCache = [];
+
+    // 初始化运行
+    window.addEventListener('DOMContentLoaded', () => {
+      loadStoredData();
+      renderCurrentCard();
+      renderWordList();
+      updateHeaderCount();
+      loadStoredApiKey();
+    });
+
+    // 1. 本地存储管理
+    function loadStoredData() {
+      try {
+        const stored = localStorage.getItem('wortblitz_vocab');
+        if (stored) {
+          vocabulary = JSON.parse(stored);
+        } else {
+          vocabulary = [...DEFAULT_VOCABULARY];
+          saveToLocalStorage();
+        }
+      } catch (e) {
+        vocabulary = [...DEFAULT_VOCABULARY];
+      }
+      applyFilter();
+    }
+
+    function saveToLocalStorage() {
+      try {
+        localStorage.setItem('wortblitz_vocab', JSON.stringify(vocabulary));
+        updateHeaderCount();
+        renderWordList();
+      } catch (e) {
+        console.error("保存失败:", e);
+      }
+    }
+
+    function updateHeaderCount() {
+      const badge = document.getElementById('deck-count-badge');
+      if (badge) badge.innerText = `${vocabulary.length} 词`;
+    }
+
+    // 2. 筛选与卡片逻辑
+    function setFilter(filter) {
+      currentFilter = filter;
+      ['all', 'learning', 'mastered'].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        if (f === filter) {
+          btn.className = "text-xs px-3 py-1 rounded-lg font-bold bg-amber-500 text-slate-950 transition";
+        } else {
+          btn.className = "text-xs px-3 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition";
+        }
+      });
+      applyFilter();
+      currentCardIndex = 0;
+      isFlipped = false;
+      renderCurrentCard();
+    }
+
+    function applyFilter() {
+      if (currentFilter === 'all') {
+        filteredIndices = vocabulary.map((_, i) => i);
+      } else {
+        filteredIndices = vocabulary
+          .map((item, i) => item.status === currentFilter ? i : -1)
+          .filter(i => i !== -1);
+      }
+    }
+
+    function flipCard() {
+      if (filteredIndices.length === 0) return;
+      isFlipped = !isFlipped;
+      const inner = document.getElementById('card-inner');
+      if (inner) {
+        if (isFlipped) {
+          inner.classList.add('rotate-y-180');
+        } else {
+          inner.classList.remove('rotate-y-180');
+        }
+      }
+    }
+
+    // 颜色配置映射
+    function getGenderMeta(gender) {
+      switch ((gender || '').toLowerCase()) {
+        case 'der':
+          return { label: '阳性名词 (der)', color: '#38bdf8', bgBadge: 'bg-sky-500/20 text-sky-300 border-sky-500/30' };
+        case 'die':
+          return { label: '阴性名词 (die)', color: '#fb7185', bgBadge: 'bg-rose-500/20 text-rose-300 border-rose-500/30' };
+        case 'das':
+          return { label: '中性名词 (das)', color: '#34d399', bgBadge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
+        case 'verb':
+          return { label: '动词 (Verb)', color: '#fbbf24', bgBadge: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
+        default:
+          return { label: '词汇 / 短语', color: '#a78bfa', bgBadge: 'bg-purple-500/20 text-purple-300 border-purple-500/30' };
+      }
+    }
+
+    // 渲染卡片界面
+    function renderCurrentCard() {
+      const container = document.getElementById('card-container');
+      const progress = document.getElementById('card-progress');
+
+      if (filteredIndices.length === 0) {
+        progress.innerText = "0 / 0";
+        container.innerHTML = `
+          <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 text-center max-w-xs space-y-3">
+            <span class="text-4xl">🎉</span>
+            <h3 class="text-sm font-bold text-white">暂无匹配卡片</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              当前分类下没有单词，快去拍照提取或切换分类吧！
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      const activeIdx = filteredIndices[currentCardIndex];
+      const card = vocabulary[activeIdx];
+      const meta = getGenderMeta(card.gender);
+      progress.innerText = `${currentCardIndex + 1} / ${filteredIndices.length}`;
+
+      container.innerHTML = `
+        <div id="card-inner" class="w-full h-[400px] relative transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}">
+          
+          <!-- 卡片正面 (德语) -->
+          <div class="absolute inset-0 w-full h-full backface-hidden bg-gradient-to-b from-[#131d3d] to-[#0f172a] border border-slate-800 rounded-3xl p-6 flex flex-col justify-between shadow-2xl">
+            <div class="flex justify-between items-start">
+              <span class="text-xs px-3 py-1 rounded-full border ${meta.bgBadge} font-bold">
+                ${meta.label}
+              </span>
+              <button onclick="event.stopPropagation(); speakText('${card.word}')" class="w-9 h-9 rounded-full bg-slate-800/90 text-amber-400 flex items-center justify-center text-sm shadow hover:scale-110 active:scale-95 transition" title="朗读发音">
+                🔊
+              </button>
+            </div>
+
+            <div class="text-center my-auto space-y-2">
+              ${card.gender && ['der','die','das'].includes(card.gender.toLowerCase()) ? `
+                <div class="text-2xl font-bold tracking-wider" style="color: ${meta.color}">
+                  ${card.gender.toLowerCase()}
+                </div>
+              ` : ''}
+              <div class="text-4xl font-black text-white tracking-tight">
+                ${card.word}
+              </div>
+              ${card.plural ? `
+                <div class="text-xs text-slate-400 font-medium">
+                  Plural: <span class="text-slate-300 font-semibold">${card.plural}</span>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="text-center text-[11px] text-slate-500 flex items-center justify-center gap-1">
+              <span>🔄</span> 点击卡片翻转看释义
+            </div>
+          </div>
+
+          <!-- 卡片背面 (中文释义 & 例句) -->
+          <div class="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-gradient-to-b from-white to-slate-100 border border-slate-200 rounded-3xl p-6 flex flex-col justify-between shadow-2xl text-slate-900">
+            <div class="flex justify-between items-start">
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold">
+                中文释义
+              </span>
+              <button onclick="event.stopPropagation(); speakText('${card.example || card.word}')" class="w-9 h-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-sm shadow hover:scale-110 active:scale-95 transition" title="朗读发音">
+                🔊
+              </button>
+            </div>
+
+            <div class="my-auto space-y-4">
+              <div class="text-center py-2 px-3 bg-amber-500/10 rounded-2xl border border-amber-500/20">
+                <div class="text-2xl font-black text-slate-900 tracking-wide">
+                  ${card.meaning || card.translation || '(未提取到中文)'}
+                </div>
+              </div>
+
+              ${card.example ? `
+                <div class="bg-slate-200/60 p-3 rounded-2xl space-y-1 text-left">
+                  <p class="text-xs font-semibold text-slate-800 leading-relaxed">
+                    🇩🇪 ${card.example}
+                  </p>
+                  ${card.exampleZh ? `
+                    <p class="text-[11px] text-slate-600 leading-relaxed">
+                      🇨🇳 ${card.exampleZh}
+                    </p>
+                  ` : ''}
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="text-center text-[11px] text-slate-400">
+              点击卡片翻回正面
+            </div>
+          </div>
+
+        </div>
+      `;
+    }
+
+    // 朗读发音 (Web Speech API)
+    function speakText(text) {
+      if (!text || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'de-DE';
+      utterance.rate = 0.85;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // 背单词评分
+    function rateCard(score) {
+      if (filteredIndices.length === 0) return;
+      const activeIdx = filteredIndices[currentCardIndex];
+      const card = vocabulary[activeIdx];
+
+      if (score >= 3) {
+        card.status = 'mastered';
+      } else {
+        card.status = 'learning';
+      }
+      saveToLocalStorage();
+
+      // 下一张
+      isFlipped = false;
+      currentCardIndex = (currentCardIndex + 1) % filteredIndices.length;
+      renderCurrentCard();
+    }
+
+    // 3. 标签切换
+    function switchTab(tab) {
+      ['study', 'extract', 'list'].forEach(t => {
+        const view = document.getElementById(`view-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (t === tab) {
+          view.classList.remove('hidden');
+          btn.className = "flex flex-col items-center py-1 text-amber-400 transition";
+        } else {
+          view.classList.add('hidden');
+          btn.className = "flex flex-col items-center py-1 text-slate-400 hover:text-white transition";
+        }
+      });
+
+      if (tab === 'study') renderCurrentCard();
+      if (tab === 'list') renderWordList();
+    }
+
+    // 4. 图片选择与 AI 拍照提取
+    function handleImageSelection(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        selectedImageBase64 = e.target.result;
+        document.getElementById('selected-image').src = selectedImageBase64;
+        document.getElementById('image-preview-container').classList.remove('hidden');
+        document.getElementById('extraction-result-box').classList.add('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearSelectedImage() {
+      selectedImageBase64 = null;
+      document.getElementById('image-preview-container').classList.add('hidden');
+      document.getElementById('extraction-result-box').classList.add('hidden');
+    }
+
+    // 调用 Gemini 多模态 API
+    async function runAIExtraction() {
+      const apiKey = localStorage.getItem('wortblitz_api_key') || '';
+      if (!apiKey.trim()) {
+        alert("请先点击右上角 ⚙️ 设置，填入你的 Google Gemini API Key 后方可拍照提取！");
+        openSettingsModal();
+        return;
+      }
+
+      if (!selectedImageBase64) {
+        alert("请先拍照或从相册选择一张德语书页图片！");
+        return;
+      }
+
+      const btn = document.getElementById('btn-start-extract');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin">⏳</span> AI 正在逐行分析德语生词...`;
+
+      try {
+        const pureBase64 = selectedImageBase64.split(',')[1];
+        const mimeType = selectedImageBase64.split(';')[0].split(':')[1] || 'image/jpeg';
+
+        const prompt = `
+你是一位专业德语教师。请识别分析这张图片中的德语生词或主要词汇。
+对于找到的每个词汇，请返回标准 JSON 数组，每条包含以下字段：
+- "word": 单词本身（名词不带冠词首字母大写，动词小写）
+- "gender": 如果是名词填 "der" 或 "die" 或 "das"；动词填 "verb"；形容词填 "adj"；其他填 "other"
+- "plural": 如果是名词请给出带定冠词的复数形式（如 "die Tische"），动词给出核心变位形式，没有则留空
+- "meaning": 精准中文释义
+- "example": 贴合语境的德语例句
+- "exampleZh": 德条例句的中文翻译
+
+必须只返回合法的标准 JSON 数组，严禁包含任何 Markdown 格式块（如 \`\`\`json）。
+`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: pureBase64
+                  }
+                }
+              ]
+            }]
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error?.message || "请求 Gemini 失败，请检查 API Key");
+        }
+
+        const data = await response.json();
+        const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+        
+        // 清理可能夹带的 markdown 格式
+        const cleanJson = textContent.replace(/```json/g, '').replace(/```/g, '').trim();
+        const words = JSON.parse(cleanJson);
+
+        if (!Array.isArray(words) || words.length === 0) {
+          alert("图片中未能清晰辨识出生词，请确保图片文字端正明亮。");
+        } else {
+          extractedCache = words;
+          renderExtractedList(words);
+        }
+      } catch (err) {
+        console.error(err);
+        alert(`识别出错: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>✨</span> 开始 AI 智能提取生词`;
+      }
+    }
+
+    function renderExtractedList(words) {
+      const box = document.getElementById('extraction-result-box');
+      const list = document.getElementById('extracted-items-list');
+      const countTag = document.getElementById('extracted-count-tag');
+
+      countTag.innerText = `${words.length} 个`;
+      list.innerHTML = words.map((w, i) => `
+        <label class="flex items-start gap-2.5 p-3 rounded-2xl bg-slate-800/80 border border-slate-700/80 cursor-pointer">
+          <input type="checkbox" checked value="${i}" class="extract-check mt-1 w-4 h-4 rounded text-amber-500 focus:ring-0">
+          <div class="flex-1 text-xs">
+            <div class="flex items-center gap-1.5">
+              ${w.gender && ['der','die','das'].includes(w.gender.toLowerCase()) ? `
+                <span class="font-bold text-sky-400">${w.gender}</span>
+              ` : ''}
+              <span class="font-bold text-white text-sm">${w.word}</span>
+              ${w.plural ? `<span class="text-slate-400 text-[10px]">(${w.plural})</span>` : ''}
+            </div>
+            <div class="text-amber-300 font-medium mt-0.5">${w.meaning}</div>
+            ${w.example ? `<div class="text-slate-400 text-[10px] mt-1 italic">${w.example}</div>` : ''}
+          </div>
+        </label>
+      `).join('');
+
+      box.classList.remove('hidden');
+    }
+
+    function saveSelectedWordsToDeck() {
+      const checkboxes = document.querySelectorAll('.extract-check:checked');
+      if (checkboxes.length === 0) {
+        alert("请至少勾选一个单词！");
+        return;
+      }
+
+      let added = 0;
+      checkboxes.forEach(cb => {
+        const item = extractedCache[parseInt(cb.value, 10)];
+        if (item) {
+          vocabulary.unshift({
+            id: `w-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            gender: item.gender || 'other',
+            word: item.word,
+            plural: item.plural || '',
+            meaning: item.meaning || item.translation || '',
+            example: item.example || '',
+            exampleZh: item.exampleZh || '',
+            status: 'learning'
+          });
+          added++;
+        }
+      });
+
+      saveToLocalStorage();
+      applyFilter();
+      currentCardIndex = 0;
+      isFlipped = false;
+      alert(`🎉 成功添加 ${added} 个生词到词库！`);
+      switchTab('study');
+    }
+
+    // 5. 生词库列表渲染
+    function renderWordList() {
+      const table = document.getElementById('vocab-items-table');
+      if (!table) return;
+
+      if (vocabulary.length === 0) {
+        table.innerHTML = `
+          <div class="text-center py-10 text-xs text-slate-500">
+            暂无生词，快去拍一张德语课本吧！
+          </div>
+        `;
+        return;
+      }
+
+      table.innerHTML = vocabulary.map((v, i) => {
+        const meta = getGenderMeta(v.gender);
+        return `
+          <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <div class="flex-1 pr-2 text-xs">
+              <div class="flex items-center gap-1.5">
+                ${v.gender && ['der','die','das'].includes(v.gender.toLowerCase()) ? `
+                  <span class="font-bold text-[11px]" style="color: ${meta.color}">${v.gender}</span>
+                ` : ''}
+                <span class="font-bold text-white text-sm">${v.word}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded ${v.status === 'mastered' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}">
+                  ${v.status === 'mastered' ? '已掌握' : '复习中'}
+                </span>
+              </div>
+              <div class="text-slate-300 font-medium mt-1">${v.meaning}</div>
+            </div>
+            <button onclick="deleteWord(${i})" class="text-slate-500 hover:text-rose-400 p-2 text-xs transition">
+              🗑️
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function deleteWord(index) {
+      if (confirm(`确定删除单词 "${vocabulary[index].word}" 吗？`)) {
+        vocabulary.splice(index, 1);
+        saveToLocalStorage();
+        applyFilter();
+        renderCurrentCard();
+      }
+    }
+
+    // 6. 手动添加弹窗
+    function openManualAddModal() {
+      document.getElementById('manual-modal').classList.remove('hidden');
+    }
+    function closeManualAddModal() {
+      document.getElementById('manual-modal').classList.add('hidden');
+    }
+    function saveManualWord() {
+      const word = document.getElementById('manual-word').value.trim();
+      const meaning = document.getElementById('manual-meaning').value.trim();
+      if (!word || !meaning) {
+        alert("请填写单词和中文释义！");
+        return;
+      }
+
+      vocabulary.unshift({
+        id: `w-${Date.now()}`,
+        gender: document.getElementById('manual-gender').value,
+        word: word,
+        plural: document.getElementById('manual-plural').value.trim(),
+        meaning: meaning,
+        example: document.getElementById('manual-example').value.trim(),
+        exampleZh: document.getElementById('manual-example-zh').value.trim(),
+        status: 'learning'
+      });
+
+      saveToLocalStorage();
+      applyFilter();
+      closeManualAddModal();
+      alert("添加成功！");
+    }
+
+    // 7. 设置与 API Key 弹窗管理
+    function openSettingsModal() {
+      loadStoredApiKey();
+      document.getElementById('settings-modal').classList.remove('hidden');
+    }
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.add('hidden');
+    }
+    function loadStoredApiKey() {
+      const key = localStorage.getItem('wortblitz_api_key') || '';
+      const input = document.getElementById('setting-api-key');
+      if (input) input.value = key;
+    }
+    function saveApiKey() {
+      const val = document.getElementById('setting-api-key').value.trim();
+      localStorage.setItem('wortblitz_api_key', val);
+      alert(val ? "✅ API Key 已安全保存到您的手机本地！" : "⚠️ API Key 已清除");
+      closeSettingsModal();
+    }
+    function toggleKeyVisibility() {
+      const input = document.getElementById('setting-api-key');
+      const btn = document.getElementById('btn-toggle-key');
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerText = '隐藏';
+      } else {
+        input.type = 'password';
+        btn.innerText = '显示';
+      }
+    }
+
+    function exportVocabulary() {
+      const blob = new Blob([JSON.stringify(vocabulary, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wortblitz_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function clearAllWords() {
+      if (confirm("⚠️ 警告：确定清空所有生词卡吗？")) {
+        vocabulary = [];
+        saveToLocalStorage();
+        applyFilter();
+        renderCurrentCard();
+        closeSettingsModal();
+      }
+    }
+  </script>
+</body>
+</html>
