@@ -67,7 +67,7 @@
       <div>
         <div class="flex items-center space-x-2">
           <h1 class="text-base font-bold text-white tracking-wide">WortBlitz</h1>
-          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">v3.8 Flash</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">Gemini 3 Flash</span>
         </div>
         <p id="storage-status" class="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 本地存储已就绪
@@ -616,7 +616,7 @@
       const file = event.target.files && event.target.files[0];
       if (!file) return;
 
-      // 使用 Canvas 在前端自动压缩 iPhone 拍摄的高清大图，防止 Payload 超限
+      // 使用 Canvas 在前端极速压缩，体积从几 MB 降到 80KB，大幅提升上传和识别速度
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
@@ -624,8 +624,8 @@
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
 
-          // 限制最大边长为 1600px，既保障德语细小印刷体清晰，又将体积控制在 300KB 左右
-          const maxDim = 1600;
+          // 将边长限制在 1000px，既能保证德语印刷体极度清晰，又极大缩短模型视觉编码时间
+          const maxDim = 1000;
           let width = img.width;
           let height = img.height;
 
@@ -643,8 +643,8 @@
           canvas.height = height;
           ctx.drawImage(img, 0, 0, width, height);
 
-          // 统一转成优质 JPEG 格式
-          selectedImageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+          // 质量调至 0.72，视觉清晰且传输体积极小
+          selectedImageBase64 = canvas.toDataURL('image/jpeg', 0.72);
           document.getElementById('selected-image').src = selectedImageBase64;
           document.getElementById('image-preview-container').classList.remove('hidden');
           document.getElementById('extraction-result-box').classList.add('hidden');
@@ -660,7 +660,7 @@
       document.getElementById('extraction-result-box').classList.add('hidden');
     }
 
-    // 调用 Gemini 多模态 API (直连 gemini-3.8-flash)
+    // 调用 Gemini 多模态 API (直连官方标准 gemini-3-flash-preview)
     async function runAIExtraction() {
       const apiKey = localStorage.getItem('wortblitz_api_key') || '';
       if (!apiKey.trim()) {
@@ -676,26 +676,28 @@
 
       const btn = document.getElementById('btn-start-extract');
       btn.disabled = true;
-      btn.innerHTML = `<span class="animate-spin">⏳</span> AI 正在逐行分析德语生词...`;
+      btn.innerHTML = `<span class="animate-spin mr-1">⚡</span> 正在智能分析德语生词...`;
 
       try {
         const pureBase64 = selectedImageBase64.split(',')[1];
         const mimeType = selectedImageBase64.split(';')[0].split(':')[1] || 'image/jpeg';
 
-        const prompt = `你是一位专业德语教师。请识别分析这张图片中的德语生词或主要词汇。
-对于找到的每个词汇，请返回标准 JSON 数组，每条包含以下字段：
-- "word": 单词本身（名词不带冠词首字母大写，动词小写）
-- "gender": 如果是名词填 "der" 或 "die" 或 "das"；动词填 "verb"；形容词填 "adj"；其他填 "other"
-- "plural": 如果是名词请给出带定冠词的复数形式（如 "die Tische"），动词给出核心变位形式，没有则留空
-- "meaning": 精准中文释义
-- "example": 贴合语境的德语例句
-- "exampleZh": 德条例句的中文翻译
+        const prompt = `请提取图片中德语课本或笔记中的重点德语生词（最多12个）。
+直接返回标准 JSON 数组，严禁任何 markdown 标签或解释文字：
+[
+  {
+    "word": "单词(名词首字母大写)",
+    "gender": "der/die/das/verb/adj/other",
+    "plural": "带冠词复数形式(如 die Äpfel，动词填-)",
+    "meaning": "中文简释",
+    "example": "简短实用例句",
+    "exampleZh": "例句中文翻译"
+  }
+]`;
 
-必须只返回合法的标准 JSON 数组，严禁包含任何 Markdown 格式块（如 \`\`\`json ）。`;
-
-        // 统一使用 Google 官方指定的 gemini-3.8-flash
-        const modelName = 'gemini-3.8-flash';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey.trim())}`;
+        // 严格遵循 Google API 规范：使用 gemini-3-flash-preview
+        const primaryModel = 'gemini-3-flash-preview';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent?key=${encodeURIComponent(apiKey.trim())}`;
 
         const payload = {
           contents: [{
@@ -711,15 +713,37 @@
           }]
         };
 
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        let response = null;
+        let lastErrorMsg = '';
 
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData?.error?.message || `API 请求错误 (状态码: ${response.status})`);
+        // 指数退避重试（最多重试2次，应对突发503网络抖动）
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (response.ok) break;
+
+            const errData = await response.json().catch(() => ({}));
+            lastErrorMsg = errData?.error?.message || `HTTP ${response.status}`;
+
+            // 若遇 503/429 拥塞，稍候退避再试
+            if (response.status === 503 || response.status === 429) {
+              await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+              continue;
+            }
+            break;
+          } catch (netErr) {
+            lastErrorMsg = netErr.message;
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+
+        if (!response || !response.ok) {
+          throw new Error(lastErrorMsg || "服务暂时不可用，请稍候重试。");
         }
 
         const successData = await response.json();
@@ -728,7 +752,7 @@
         const words = JSON.parse(cleanJson);
 
         if (!Array.isArray(words) || words.length === 0) {
-          alert("未能从图片中解析出生词，请确保图片文字端正清晰。");
+          alert("未能从图片中解析出生词，请确保图片文字清晰端正。");
         } else {
           extractedCache = words;
           renderExtractedList(words);
