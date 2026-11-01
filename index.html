@@ -651,7 +651,7 @@
       document.getElementById('extraction-result-box').classList.add('hidden');
     }
 
-    // 调用 Gemini 多模态 API
+    // 调用 Gemini 多模态 API (支持自动轮询可用模型)
     async function runAIExtraction() {
       const apiKey = localStorage.getItem('wortblitz_api_key') || '';
       if (!apiKey.trim()) {
@@ -686,29 +686,54 @@
 必须只返回合法的标准 JSON 数组，严禁包含任何 Markdown 格式块（如 \`\`\`json）。
 `;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: mimeType,
-                    data: pureBase64
-                  }
+        const requestBody = {
+          contents: [{
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: pureBase64
                 }
-              ]
-            }]
-          })
-        });
+              }
+            ]
+          }]
+        };
 
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error?.message || "请求 Gemini 失败，请检查 API Key");
+        // 备选模型列表，按优先级尝试
+        const candidateModels = [
+          'gemini-2.5-flash',
+          'gemini-2.0-flash',
+          'gemini-2.5-flash-lite',
+          'gemini-flash-latest'
+        ];
+
+        let response = null;
+        let lastErrorMsg = '';
+
+        for (const model of candidateModels) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody)
+            });
+
+            if (res.ok) {
+              response = res;
+              break; // 成功则退出循环
+            } else {
+              const err = await res.json();
+              lastErrorMsg = err.error?.message || res.statusText;
+            }
+          } catch (e) {
+            lastErrorMsg = e.message;
+          }
+        }
+
+        if (!response) {
+          throw new Error(lastErrorMsg || "未能连通 Gemini 模型，请检查网络或 API Key");
         }
 
         const data = await response.json();
