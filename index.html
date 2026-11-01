@@ -682,7 +682,7 @@
         const pureBase64 = selectedImageBase64.split(',')[1];
         const mimeType = selectedImageBase64.split(';')[0].split(':')[1] || 'image/jpeg';
 
-        const prompt = `请提取图片中德语课本或笔记中的重点德语生词（最多12个）。
+        const prompt = `请提取图片中德语课本或笔记中的重点德语生词（最多120个）。
 直接返回标准 JSON 数组，严禁任何 markdown 标签或解释文字：
 [
   {
